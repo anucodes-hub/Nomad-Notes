@@ -1,6 +1,7 @@
 from tools.geo_tool import confidence_score, heritage_lookup, reverse_geocode
 from tools.history_tool import fetch_history
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import os
 import json
 
@@ -26,10 +27,9 @@ class LocationAgent:
         
         # Agentic RAG Router
         api_key = os.getenv("GOOGLE_API_KEY")
-        if api_key:
-            genai.configure(api_key=api_key)
+        client = genai.Client(api_key=api_key) if api_key else genai.Client()
             
-        model = genai.GenerativeModel("gemini-3.5-flash", generation_config={"response_mime_type": "application/json"})
+        config = types.GenerateContentConfig(response_mime_type="application/json")
         router_prompt = (
             f"Do you have deep, accurate historical knowledge about '{qualified_place_name}'? "
             f"If it is a famous landmark, respond with 'is_famous': true and provide a 'context' and a list of 'facts'. "
@@ -39,12 +39,17 @@ class LocationAgent:
         
         try:
             creds = os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS", None)
-            response = await model.generate_content_async(router_prompt)
+            response = await client.aio.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=router_prompt,
+                config=config
+            )
             if creds is not None:
                 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = creds
                 
             router_decision = json.loads(response.text)
-        except Exception:
+        except Exception as e:
+            print(f"LocationAgent Gemini Router failed: {type(e).__name__} - {e}")
             router_decision = {"is_famous": False}
             
         if router_decision.get("is_famous"):

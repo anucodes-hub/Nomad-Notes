@@ -17,7 +17,7 @@ import hashlib
 import json
 import redis.asyncio as aioredis
 settings = get_settings()
-redis_client = aioredis.from_url(settings.redis_url, decode_responses=True)
+redis_client = aioredis.from_url(settings.redis_url or "redis://localhost:6379", decode_responses=True)
 
 # Configure structlog
 structlog.configure(

@@ -4,7 +4,8 @@ from pydantic import BaseModel
 import json
 import logging
 import os
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 logger = logging.getLogger("nomadnotes.tools.journey_tool")
 
@@ -167,18 +168,21 @@ async def get_last_story(user_id) -> str | None:
 
 async def _get_embedding(text: str) -> list[float]:
     api_key = os.getenv("GOOGLE_API_KEY")
-    if api_key:
-        genai.configure(api_key=api_key)
+    client = genai.Client(api_key=api_key) if api_key else genai.Client()
     try:
         # Use a lightweight embedding model
-        result = genai.embed_content(
-            model="models/text-embedding-004",
-            content=text,
-            task_type="retrieval_document",
+        result = client.models.embed_content(
+            model="gemini-embedding-2",
+            contents=text,
+            config=types.EmbedContentConfig(
+                output_dimensionality=768
+            )
         )
-        return result['embedding']
+        embedding = result.embeddings[0].values
+        logger.info(f"JourneyTool Gemini Embedding: Successfully generated embedding with dimension: {len(embedding)}")
+        return embedding
     except Exception as e:
-        logger.error(f"Failed to generate embedding: {e}")
+        logger.error(f"JourneyTool Gemini Embedding failed: {type(e).__name__} - {e}")
         return []
 
 @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3))

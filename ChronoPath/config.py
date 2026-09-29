@@ -21,6 +21,7 @@ class Settings(BaseModel):
     request_timeout_seconds: float = Field(default=20.0, gt=0)
     agent_timeout_seconds: float = Field(default=10.0, gt=0)
     retry_attempts: int = Field(default=2, ge=0)
+    local_auth_bypass: bool = Field(default=False)
 
     @model_validator(mode="after")
     def validate_production(self):
@@ -88,6 +89,7 @@ def get_settings():
             request_timeout_seconds=float(os.getenv("REQUEST_TIMEOUT_SECONDS", "20")),
             agent_timeout_seconds=float(os.getenv("AGENT_TIMEOUT_SECONDS", "10")),
             retry_attempts=int(os.getenv("RETRY_ATTEMPTS", "2")),
+            local_auth_bypass=_env_bool("LOCAL_AUTH_BYPASS"),
         )
     except ValidationError as exc:
         raise RuntimeError(f"Invalid Nomad Notes configuration: {exc}") from exc

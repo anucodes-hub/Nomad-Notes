@@ -1,7 +1,8 @@
 import os
 import json
 import asyncio
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 class ReviewerAgent:
     """
@@ -50,16 +51,17 @@ class ReviewerAgent:
 
         try:
             api_key = os.getenv("GOOGLE_API_KEY")
-            if api_key:
-                genai.configure(api_key=api_key, transport='rest')
-                
-            model = genai.GenerativeModel("gemini-3.5-flash", generation_config={"response_mime_type": "application/json"})
+            client = genai.Client(api_key=api_key) if api_key else genai.Client()
+            config = types.GenerateContentConfig(response_mime_type="application/json")
             
             creds = os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS", None)
             
             try:
                 loop = asyncio.get_running_loop()
-                response = await loop.run_in_executor(None, lambda: model.generate_content(prompt))
+                response = await loop.run_in_executor(
+                    None, 
+                    lambda: client.models.generate_content(model="gemini-2.5-flash", contents=prompt, config=config)
+                )
                 result_text = response.text.strip()
                 if result_text.startswith("```json"):
                     result_text = result_text[7:]
@@ -78,7 +80,7 @@ class ReviewerAgent:
             }
 
         except Exception as e:
-            print(f"ReviewerAgent failed: {e}")
+            print(f"ReviewerAgent Gemini failed: {type(e).__name__} - {e}")
             # Failsafe: if the critic fails, just pass it through so the user still gets a story
             return {
                 "is_pass": True,

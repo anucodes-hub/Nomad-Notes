@@ -1,6 +1,6 @@
 import os
 import asyncio
-import google.generativeai as genai
+from google import genai
 
 class NarrativeAgent:
     async def execute(self, state):
@@ -60,25 +60,27 @@ class NarrativeAgent:
         
         try:
             api_key = os.getenv("GOOGLE_API_KEY")
-            if api_key:
-                genai.configure(api_key=api_key, transport='rest')
-                
-            model = genai.GenerativeModel("gemini-3.5-flash")
+            # We can configure transport if needed, but client handles HTTP default now.
+            client = genai.Client(api_key=api_key) if api_key else genai.Client()
             
-            # Temporary hack: google.generativeai automatically grabs GOOGLE_APPLICATION_CREDENTIALS 
-            # and ignores the API key. We must temporarily hide it during generation.
+            # Temporary hack: google-genai may automatically grab GOOGLE_APPLICATION_CREDENTIALS 
+            # and ignore the API key. We must temporarily hide it during generation.
             creds = os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS", None)
             
             try:
                 loop = asyncio.get_running_loop()
-                response = await loop.run_in_executor(None, lambda: model.generate_content(prompt))
+                # Run sync generate_content via executor to not block, preserving existing behavior
+                response = await loop.run_in_executor(
+                    None, 
+                    lambda: client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+                )
                 story = response.text
             finally:
                 if creds is not None:
                     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = creds
                     
         except Exception as e:
-            print(f"Narrative generation failed: {e}")
+            print(f"Narrative generation failed: {type(e).__name__} - {e}")
             story = f"Welcome to {place}. This location holds deep historical significance from the {era}."
 
         return {

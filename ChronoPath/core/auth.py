@@ -15,9 +15,22 @@ except ValueError:
     except FileNotFoundError:
         print("Warning: firebase-admin.json not found. Firebase features may not work during testing.")
 
+from config import get_settings
+import logging
+
+logger = logging.getLogger(__name__)
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 async def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> str:
+    settings = get_settings()
+    
+    # Local development bypass
+    if settings.environment.lower() == "development" and settings.local_auth_bypass:
+        logger.warning("WARNING: Development authentication mode active; Firebase verification is bypassed.")
+        print("WARNING: Development authentication mode active; Firebase verification is bypassed.")
+        return "local-dev-user"
+
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",

@@ -1,7 +1,7 @@
 import os
 import json
 import asyncio
-import google.generativeai as genai
+from google import genai
 
 class NearbyAgent:
     async def execute(self, state):
@@ -46,16 +46,16 @@ class NearbyAgent:
 
         try:
             api_key = os.getenv("GOOGLE_API_KEY")
-            if api_key:
-                genai.configure(api_key=api_key, transport='rest')
-                
-            model = genai.GenerativeModel("gemini-3.5-flash")
+            client = genai.Client(api_key=api_key) if api_key else genai.Client()
             
             creds = os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS", None)
             
             try:
                 loop = asyncio.get_running_loop()
-                response = await loop.run_in_executor(None, lambda: model.generate_content(prompt))
+                response = await loop.run_in_executor(
+                    None, 
+                    lambda: client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+                )
                 text = response.text.strip()
                 if text.startswith("```json"):
                     text = text.replace("```json", "", 1)
@@ -69,5 +69,5 @@ class NearbyAgent:
                     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = creds
                     
         except Exception as e:
-            print(f"Nearby places generation failed: {e}")
+            print(f"Nearby places generation failed: {type(e).__name__} - {e}")
             return []

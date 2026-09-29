@@ -230,9 +230,7 @@ media/visual_*
 !users_db.json
 
 # Local virtual environments
-venv/
-venv2/
-venv3/
+venv*/
 
 # Local logs
 *.log
